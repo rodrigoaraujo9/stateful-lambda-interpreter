@@ -86,10 +86,8 @@ To evaluate `e1 e2`:
 ### Let
 
 `let x = e1 in e2` is evaluated as syntactic sugar for function application:
+`(App (Lambda x e2) e1)`
 
-```haskell
-(App (Lambda x e2) e1)
-```
 
 ### Fix
 
