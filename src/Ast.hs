@@ -14,14 +14,14 @@ data Term = Var Ident               -- variables
           | IfZero Term Term Term   -- conditional
           | Let Ident Term Term     -- local definition
           | Fix Term                -- fixed-point operator
-            deriving Show
+            deriving (Show, Eq)
 
 -- types
 type Ident = String
 type Env = [(Ident,Value)]
 data Value = Int Int
   | Closure Term Env
-  deriving Show
+  deriving (Show, Eq)
 type Cont = Value -> Value
 
 -- some syntactical definitions

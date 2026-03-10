@@ -127,4 +127,5 @@ test-suite stateful-lambda-interpreter-test
     -- Test dependencies.
     build-depends:
         base ^>=4.22.0.0,
-        stateful-lambda-interpreter
+        stateful-lambda-interpreter,
+        HUnit

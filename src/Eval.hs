@@ -81,10 +81,12 @@ eval_cps (e1 :* e2) env c =
                 _ -> error "type error in :*"
             ))
 eval_cps (IfZero e1 e2 e3) env c =
-    case (eval_cps e1 env c) of
-    Int 0 -> eval_cps e2 env c
-    Int _ -> eval_cps e3 env c
-    _ -> error "first argument didn't evaluate to Int in IfZero"
+    eval_cps e1 env (\v ->
+        case v of
+            Int 0 -> eval_cps e2 env c
+            Int _ -> eval_cps e3 env c
+            _ -> error "first argument didn't evaluate to Int in IfZero"
+    )
 eval_cps (Let x e1 e2) e c =
     eval_cps e1 e (\v ->
         eval_cps e2 ((x, v): e) c
