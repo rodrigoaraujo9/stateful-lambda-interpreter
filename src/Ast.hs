@@ -18,11 +18,16 @@ data Term = Var Ident               -- variables
 
 -- types
 type Ident = String
+
 type Env = [(Ident,Value)]
+
 data Value = Int Int
   | Closure Term Env
   deriving (Show, Eq)
+
 type Cont = Value -> Value
+
+
 
 -- some syntactical definitions
 -- list of identifiers with free occurrences in a term

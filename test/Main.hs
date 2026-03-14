@@ -3,193 +3,242 @@ module Main (main) where
 import Control.Exception (ErrorCall, evaluate, try)
 import Test.HUnit
 
-import Ast
-import Eval
+import qualified Ast
+import Ast (Term(..))
+import qualified Types as S
+
 import Lexer
 import Parser
+import Compiler
+import Run
+
+import qualified EvalEnv as Env
+
+import qualified EvalSubst as Subst
+
+import qualified EvalCPS as CPS
+
+data Backend
+    = BSubst
+    | BEnv
+    | BCps
+    | BSecd
+    deriving (Eq, Show)
+
+data Result
+    = RInt Int
+    | RClosure
+    | RLambda
+    deriving (Eq, Show)
 
 parseTerm :: String -> Term
 parseTerm s = parse (lexer s)
 
-evalNormal :: String -> Value
-evalNormal s = eval (parseTerm s) []
+runBackend :: Backend -> String -> Result
+runBackend backend input =
+    case backend of
+        BSubst ->
+            normalizeTerm (Subst.eval term)
 
-evalCps :: String -> Value
-evalCps s = eval_cps (parseTerm s) [] id
+        BEnv ->
+            normalizeAstValue (Env.eval term [])
 
-assertEvalBoth :: String -> String -> Value -> Assertion
-assertEvalBoth label input expected = do
-    let normal = evalNormal input
-    let cps = evalCps input
-    assertEqual (label ++ " normal") expected normal
-    assertEqual (label ++ " cps") expected cps
-    assertEqual (label ++ " normal and cps differ") normal cps
+        BCps ->
+            normalizeAstValue (CPS.eval term [] id)
 
-assertEvalErrorBoth :: String -> String -> Assertion
-assertEvalErrorBoth label input = do
-    normalRes <- try (evaluate (evalNormal input)) :: IO (Either ErrorCall Value)
-    cpsRes <- try (evaluate (evalCps input)) :: IO (Either ErrorCall Value)
+        BSecd ->
+            normalizeSecdValue (run (compile term []))
+  where
+    term = parseTerm input
 
-    case normalRes of
-        Left _ -> pure ()
-        Right v -> assertFailure (label ++ " normal should fail but got " ++ show v)
+normalizeTerm :: Term -> Result
+normalizeTerm (Const n)    = RInt n
+normalizeTerm (Lambda _ _) = RLambda
+normalizeTerm _            = error "substitution backend did not normalize to Const/Lambda"
 
-    case cpsRes of
-        Left _ -> pure ()
-        Right v -> assertFailure (label ++ " cps should fail but got " ++ show v)
+normalizeAstValue :: Ast.Value -> Result
+normalizeAstValue v =
+    case v of
+        Ast.Int n      -> RInt n
+        Ast.Closure _ _ -> RClosure
+
+normalizeSecdValue :: S.Value -> Result
+normalizeSecdValue v =
+    case v of
+        S.I n -> RInt n
+        S.A _ -> RClosure
+
+assertRunAll :: String -> String -> Result -> Assertion
+assertRunAll label input expected =
+    mapM_ check [BSubst, BEnv, BCps, BSecd]
+  where
+    check backend = do
+        let result = runBackend backend input
+        assertEqual (label ++ " [" ++ show backend ++ "]") expected result
+
+assertRunErrorAll :: String -> String -> Assertion
+assertRunErrorAll label input =
+    mapM_ check [BSubst, BEnv, BCps, BSecd]
+  where
+    check backend = do
+        res <- try (evaluate (runBackend backend input)) :: IO (Either ErrorCall Result)
+        case res of
+            Left _  -> pure ()
+            Right v ->
+                assertFailure (label ++ " [" ++ show backend ++ "] should fail but got " ++ show v)
 
 test01 :: Test
 test01 = TestCase $
-    assertEvalBoth "const" "42" (Int 42)
+    assertRunAll "const" "42" (RInt 42)
 
 test02 :: Test
 test02 = TestCase $
-    assertEvalBoth "addition" "1 + 2" (Int 3)
+    assertRunAll "addition" "1 + 2" (RInt 3)
 
 test03 :: Test
 test03 = TestCase $
-    assertEvalBoth "subtraction" "10 - 3" (Int 7)
+    assertRunAll "subtraction" "10 - 3" (RInt 7)
 
 test04 :: Test
 test04 = TestCase $
-    assertEvalBoth "multiplication" "6 * 7" (Int 42)
+    assertRunAll "multiplication" "6 * 7" (RInt 42)
 
 test05 :: Test
 test05 = TestCase $
-    assertEvalBoth "nested arithmetic" "(2 + 3) * (4 - 1)" (Int 15)
+    assertRunAll "nested arithmetic" "(2 + 3) * (4 - 1)" (RInt 15)
 
 test06 :: Test
 test06 = TestCase $
-    assertEvalBoth "ifzero true" "if iszero 0 then 11 else 22" (Int 11)
+    assertRunAll "ifzero true" "if iszero 0 then 11 else 22" (RInt 11)
 
 test07 :: Test
 test07 = TestCase $
-    assertEvalBoth "ifzero false" "if iszero 5 then 11 else 22" (Int 22)
+    assertRunAll "ifzero false" "if iszero 5 then 11 else 22" (RInt 22)
 
 test08 :: Test
 test08 = TestCase $
-    assertEvalBoth "let binding" "let x = 5 in x + 1" (Int 6)
+    assertRunAll "let binding" "let x = 5 in x + 1" (RInt 6)
 
 test09 :: Test
 test09 = TestCase $
-    assertEvalBoth "let shadowing" "let x = 2 in let x = 9 in x" (Int 9)
+    assertRunAll "let shadowing" "let x = 2 in let x = 9 in x" (RInt 9)
 
 test10 :: Test
 test10 = TestCase $
-    assertEvalBoth "identity application" "(lambda x. x) 99" (Int 99)
+    assertRunAll "identity application" "(lambda x. x) 99" (RInt 99)
 
 test11 :: Test
 test11 = TestCase $
-    assertEvalBoth "lambda arithmetic" "(lambda x. x + 1) 5" (Int 6)
+    assertRunAll "lambda arithmetic" "(lambda x. x + 1) 5" (RInt 6)
 
 test12 :: Test
 test12 = TestCase $
-    assertEvalBoth "curried application" "((lambda x. lambda y. x + y) 4) 8" (Int 12)
+    assertRunAll "curried application" "((lambda x. lambda y. x + y) 4) 8" (RInt 12)
 
 test13 :: Test
 test13 = TestCase $
-    assertEvalBoth
+    assertRunAll
         "closure capture"
         "let x = 10 in let f = lambda y. x + y in f 7"
-        (Int 17)
+        (RInt 17)
 
 test14 :: Test
 test14 = TestCase $
-    assertEvalBoth
+    assertRunAll
         "lexical scoping"
         "let x = 10 in let f = lambda y. x + y in let x = 100 in f 1"
-        (Int 11)
+        (RInt 11)
 
 test15 :: Test
 test15 = TestCase $
-    assertEvalBoth
+    assertRunAll
         "let evaluated value"
         "let x = 2 * 3 in x + 4"
-        (Int 10)
+        (RInt 10)
 
 test16 :: Test
 test16 = TestCase $
-    assertEvalErrorBoth "free variable" "x"
+    assertRunErrorAll "free variable" "x"
 
 test17 :: Test
 test17 = TestCase $
-    assertEvalErrorBoth "apply non-closure" "3 4"
+    assertRunErrorAll "apply non-closure" "3 4"
 
 test18 :: Test
 test18 = TestCase $
-    assertEvalErrorBoth "plus type error" "(lambda x. x) + 1"
+    assertRunErrorAll "plus type error" "(lambda x. x) + 1"
 
 test19 :: Test
 test19 = TestCase $
-    assertEvalErrorBoth "minus type error" "10 - (lambda x. x)"
+    assertRunErrorAll "minus type error" "10 - (lambda x. x)"
 
 test20 :: Test
 test20 = TestCase $
-    assertEvalErrorBoth "times type error" "(lambda x. x) * (lambda y. y)"
+    assertRunErrorAll "times type error" "(lambda x. x) * (lambda y. y)"
 
 test21 :: Test
 test21 = TestCase $
-    assertEvalErrorBoth "ifzero condition type error" "if iszero (lambda x. x) then 1 else 2"
+    assertRunErrorAll "ifzero condition type error" "if iszero (lambda x. x) then 1 else 2"
 
 test22 :: Test
 test22 = TestCase $
-    assertEvalErrorBoth "fix non-closure" "fix 5"
+    assertRunErrorAll "fix non-function shape" "fix 5"
 
 test23 :: Test
 test23 = TestCase $
-    assertEvalBoth
+    assertRunAll
         "fix identity-like function"
         "(fix (lambda f. lambda x. x)) 33"
-        (Int 33)
+        (RInt 33)
 
 test24 :: Test
 test24 = TestCase $
-    assertEvalBoth
+    assertRunAll
         "recursive sumdown"
         "let sumdown = fix (lambda f. lambda n. if iszero n then 0 else n + (f (n - 1))) in sumdown 4"
-        (Int 10)
+        (RInt 10)
 
 test25 :: Test
 test25 = TestCase $
-    assertEvalBoth
+    assertRunAll
         "recursive multiplication"
         "let mul = fix (lambda self. lambda a. lambda b. if iszero b then 0 else a + ((self a) (b - 1))) in ((mul 3) 4)"
-        (Int 12)
+        (RInt 12)
 
 test26 :: Test
 test26 = TestCase $
-    assertEvalBoth
+    assertRunAll
         "factorial"
         "let fact = fix (lambda f. lambda n. if iszero n then 1 else n * (f (n - 1))) in fact 5"
-        (Int 120)
+        (RInt 120)
 
 test27 :: Test
 test27 = TestCase $
-    assertEvalBoth
+    assertRunAll
         "fibonacci"
         "let fib = fix (lambda f. lambda n. if iszero n then 0 else if iszero (n - 1) then 1 else (f (n - 1)) + (f (n - 2))) in fib 8"
-        (Int 21)
+        (RInt 21)
 
 test28 :: Test
 test28 = TestCase $
-    assertEvalBoth
+    assertRunAll
         "closure plus recursion"
         "let base = 2 in let pow = fix (lambda self. lambda n. if iszero n then 1 else base * (self (n - 1))) in pow 5"
-        (Int 32)
+        (RInt 32)
 
 test29 :: Test
 test29 = TestCase $
-    assertEvalBoth
+    assertRunAll
         "higher-order recursion"
         "let sumdown = fix (lambda f. lambda n. if iszero n then 0 else n + (f (n - 1))) in let twice = lambda g. lambda x. g (g x) in (twice sumdown) 2"
-        (Int 6)
+        (RInt 6)
 
 test30 :: Test
 test30 = TestCase $
-    assertEvalBoth
+    assertRunAll
         "full combined program"
         "let fact = fix (lambda f. lambda n. if iszero n then 1 else n * (f (n - 1))) in let sumdown = fix (lambda g. lambda n. if iszero n then 0 else n + (g (n - 1))) in (fact 4) + (sumdown 5)"
-        (Int 39)
+        (RInt 39)
 
 tests :: Test
 tests = TestList
@@ -214,7 +263,7 @@ tests = TestList
     , TestLabel "19 minus type error" test19
     , TestLabel "20 times type error" test20
     , TestLabel "21 ifzero type error" test21
-    , TestLabel "22 fix non-closure error" test22
+    , TestLabel "22 fix shape error" test22
     , TestLabel "23 fix simple function" test23
     , TestLabel "24 recursive sumdown" test24
     , TestLabel "25 recursive mul" test25
@@ -229,5 +278,5 @@ main :: IO ()
 main = do
     results <- runTestTT tests
     if failures results > 0 || errors results > 0
-        then error "Some eval tests failed."
-        else putStrLn "All 30 eval tests passed."
+        then error "Some backend tests failed."
+        else putStrLn "All tests passed for subst, env, cps, and secd."

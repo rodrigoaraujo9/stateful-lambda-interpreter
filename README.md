@@ -1,124 +1,209 @@
-# stateful-lambda-interpreter
+<br />
+<div align="center">
+  <h3 align="center">lambda-calculus</h3>
+  <p align="center">
+    A lambda calculus interpreter, compiler, and SECD virtual machine in Haskell.
+  </p>
+</div>
 
-A lambda calculus interpreter written in Haskell for a programming languages course.
-The abstract syntax tree and the evaluation model were provided by the teacher, and the interpreter is implemented using an explicit runtime environment with closures.
+## About
 
-## What it does
+This project was developed for a programming languages course and explores multiple ways of executing the same lambda calculus language inside a single codebase.
 
-Parses and evaluates expressions with support for:
+The goal was not only to evaluate expressions, but to understand how different semantic models relate to each other in practice: direct substitution, closure-based evaluation, continuation-passing style, and finally compilation into an abstract machine.
 
-- Variables and lambda abstractions (`\x. x` or `lambda x. x`)
-- Function application (`f x`)
-- Integer constants and arithmetic (`+`, `-`, `*`)
-- Conditionals (`if iszero e then e else e`)
-- Local definitions (`let x = e in e`)
-- Fixed-point operator (`fix`)
+The parsing infrastructure and abstract syntax tree were provided in class, while the interpreters, compiler, runtime machine, and test suite were implemented independently.
 
-## Evaluation model
+The language currently supports:
 
-The interpreter evaluates terms with the function:
+- variables and lambda abstractions
+- function application
+- integer arithmetic
+- conditionals with `if iszero`
+- local definitions with `let`
+- recursion through `fix`
 
-```haskell
-eval :: Term -> Env -> Value
+## Execution models
+
+The executable supports four execution modes, each exposing a different semantic perspective over the same language.
+
+### Substitution evaluator
+
+Direct beta-reduction through substitution.
+
+Focuses on the most immediate operational interpretation of lambda calculus:
+
+- applicative order
+- weak normal form
+- explicit substitution
+
+```bash
+cabal run exe:lambda-calculus -- subst
 ```
 
-where:
+### Environment evaluator
 
-- `Term` is the source language expression
-- `Env` is the runtime environment, storing variable bindings
-- `Value` is the result of evaluation
+Evaluation through closures and runtime environments.
 
-### Runtime values
+Instead of rewriting syntax, values are carried through lexical environments:
+
+- applicative order
+- lexical scoping
+- closures preserve defining environments
+
+```bash
+cabal run exe:lambda-calculus -- env
+```
+
+### CPS evaluator
+
+A continuation-passing version of the environment evaluator.
+
+This makes control flow explicit and mirrors the same semantics under continuation transformation:
+
+- explicit continuations
+- same observable results as environment evaluation
+- explicit control transfer
+
+```bash
+cabal run exe:lambda-calculus -- cps
+```
+
+### SECD machine
+
+Expressions are compiled into instructions and executed by a stateful SECD machine.
+
+This moves from interpretation into explicit machine execution:
+
+- stack-based execution
+- explicit environments
+- closure store
+- dump-based returns
+
+```bash
+cabal run exe:lambda-calculus -- secd
+```
+
+## Machine model
+
+The SECD implementation follows the abstract machine studied in class:
+
+- **S** → stack
+- **E** → environment
+- **C** → control
+- **D** → dump
+- **Store** → closure memory
+
+Machine configuration:
 
 ```haskell
-type Env = [(Ident, Value)]
+type Conf = (Stack, Env, Code, Dump, Store)
+```
 
+Closures are stored explicitly:
+
+```haskell
+type Closure = (Code, Env)
+```
+
+Runtime values:
+
+```haskell
 data Value
-  = Int Int
-  | Closure Term Env
+  = I Int
+  | A Addr
 ```
 
-This means evaluation produces either:
+## Compilation
 
-- an integer value
-- a closure, which stores:
-    - the lambda term itself
-    - the environment where it was created
+Source terms are compiled into machine instructions:
 
-## Evaluation strategy
+```haskell
+compile :: Term -> [Ident] -> Code
+```
 
-- **Applicative order** — function arguments are evaluated before application
-- **Weak evaluation of lambdas** — lambda bodies are not reduced until application
-- **Environment-based semantics** — variables are resolved through the runtime environment
-- **Closures** are used to preserve lexical scope
-- **No free variables allowed at runtime** — a free variable occurrence raises an error
+Variables are translated into lexical indices before execution.
 
-## Supported constructs
+Example:
 
-### Variables
+```txt
+lambda x . x + 1
+```
 
-Variables are looked up in the current environment.
+becomes:
 
-### Lambda abstractions
+```haskell
+[LDF [LD 0, LDC 1, ADD, RTN]]
+```
 
-A lambda evaluates to a closure containing the lambda term and its defining environment.
+## Supported instructions
 
-### Application
+The SECD runtime currently supports:
 
-To evaluate `e1 e2`:
+```haskell
+LDC
+LD
+ADD
+SUB
+MUL
+LDF
+LDRF
+AP
+RTN
+SEL
+JOIN
+HALT
+```
 
-1. evaluate `e1` to a closure
-2. evaluate `e2` to a value
-3. extend the closure environment with the argument binding
-4. evaluate the lambda body in that extended environment
-
-### Arithmetic
-
-`+`, `-`, and `*` require both operands to evaluate to integers.
-
-### Conditionals
-
-`if iszero e1 then e2 else e3`
-
-- if `e1` evaluates to `Int 0`, evaluate `e2`
-- otherwise, if it evaluates to `Int n`, evaluate `e3`
-
-### Let
-
-`let x = e1 in e2` is evaluated as syntactic sugar for function application:
-`(App (Lambda x e2) e1)`
-
-
-### Fix
-
-`fix` is used for recursive definitions by building a self-referential closure.
+Recursive closures are handled through `LDRF`, allowing cyclic store allocation for `fix`.
 
 ## How to run
 
-You need:
-
-- GHC
-- Cabal
-- Happy
-
-Generate the parser and run the interpreter with:
+Generate the parser and build:
 
 ```bash
 happy src/Parser.y
-cabal run
+cabal build
 ```
 
-Then type an expression and finish input with `Ctrl+D`.
+Then choose a backend:
 
-## Examples
+```bash
+cabal run exe:lambda-calculus -- subst
+cabal run exe:lambda-calculus -- env
+cabal run exe:lambda-calculus -- cps
+cabal run exe:lambda-calculus -- secd
+```
+
+Input is read from standard input.
+
+## Testing
+
+The project includes a shared automated suite covering all execution models:
+
+```bash
+cabal test
+```
+
+This verifies:
+
+- arithmetic
+- lexical scoping
+- closures
+- recursion
+- higher-order functions
+- machine/runtime errors
+
+## Example programs
 
 ```txt
 if iszero 0 then 99 else 5
--- Int 99
+```
 
+```txt
 let twice = lambda f . lambda x . f (f x) in twice (lambda x . x + 1) 42
--- Int 44
+```
 
+```txt
 let fact = fix lambda f . lambda n . if iszero n then 1 else n * f (n - 1) in fact 10
--- Int 3628800
 ```
