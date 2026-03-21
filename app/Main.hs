@@ -9,7 +9,7 @@ import qualified EvalSubst as Subst
 import qualified EvalEnv as Env
 import qualified EvalCPS as CPS
 import qualified CompilerSECD as SECD
-import qualified CompilerSKI as SKI
+import qualified Combinator as SKI
 import Run
 
 main :: IO ()

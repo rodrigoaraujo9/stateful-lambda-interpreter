@@ -59,7 +59,7 @@ library
     import:           warnings
 
     -- Modules exported by the library.
-    exposed-modules:  MyLib, Ast, EvalEnv, EvalSubst, EvalCPS, Parser, Lexer, CompilerSECD, Execute, Types, Run, CompilerSKI
+    exposed-modules:  MyLib, Ast, EvalEnv, EvalSubst, EvalCPS, Parser, Lexer, CompilerSECD, Execute, Types, Run, Combinator
 
     -- Modules included in this library but not exported.
     -- other-modules:

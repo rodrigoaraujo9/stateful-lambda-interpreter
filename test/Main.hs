@@ -17,7 +17,7 @@ import qualified EvalSubst as Subst
 
 import qualified EvalCPS as CPS
 
-import qualified CompilerSKI as SKI
+import qualified Combinator as SKI
 
 import qualified CompilerSECD as SECD
 
