@@ -22,7 +22,6 @@ rewrite (Prim Sub : Combinatory.Const a : Combinatory.Const b : xs) = Combinator
 rewrite (Prim Mul : Combinatory.Const a : Combinatory.Const b : xs) = Combinatory.Const (a * b) : xs
 rewrite (Prim Div : Combinatory.Const _ : Combinatory.Const 0 : _)  = error "division by zero"
 rewrite (Prim Div : Combinatory.Const a : Combinatory.Const b : xs) = Combinatory.Const (a `div` b) : xs
-
 rewrite (Combinatory.IfZero : Combinatory.Const 0 : t : _ :xs)      = t:xs
 rewrite (Combinatory.IfZero : Combinatory.Const _ : _ : f :xs)      = f:xs
 rewrite xs = xs

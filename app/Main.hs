@@ -19,6 +19,11 @@ main = do
             let term = parse (lexer input)
             let comb = compile term
             let result = evaluate [comb]
+            putStrLn "term:"
             print term
+            putStrLn ""
+            putStrLn "code:"
             print comb
+            putStrLn ""
+            putStrLn "result:"
             print result
