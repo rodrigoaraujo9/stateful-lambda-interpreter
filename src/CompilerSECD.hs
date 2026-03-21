@@ -1,4 +1,4 @@
-module Compiler where
+module CompilerSECD where
 import Ast(Term(..), Ident)
 import Data.List (elemIndex)
 import Types

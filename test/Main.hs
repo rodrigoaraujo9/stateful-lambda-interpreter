@@ -9,7 +9,6 @@ import qualified Types as S
 
 import Lexer
 import Parser
-import Compiler
 import Run
 
 import qualified EvalEnv as Env
@@ -18,11 +17,16 @@ import qualified EvalSubst as Subst
 
 import qualified EvalCPS as CPS
 
+import qualified CompilerSKI as SKI
+
+import qualified CompilerSECD as SECD
+
 data Backend
     = BSubst
     | BEnv
     | BCps
     | BSecd
+    | BSki
     deriving (Eq, Show)
 
 data Result
@@ -47,14 +51,19 @@ runBackend backend input =
             normalizeAstValue (CPS.eval term [] id)
 
         BSecd ->
-            normalizeSecdValue (run (compile term []))
+            normalizeSecdValue (run (SECD.compile term []))
+
+        BSki ->
+            normalizeSkiValue (SKI.evaluate [SKI.compile term])
   where
     term = parseTerm input
 
-normalizeTerm :: Term -> Result
-normalizeTerm (Const n)    = RInt n
-normalizeTerm (Lambda _ _) = RLambda
-normalizeTerm _            = error "substitution backend did not normalize to Const/Lambda"
+normalizeSkiValue :: [SKI.Comb] -> Result
+normalizeSkiValue [c] =
+    case c of
+        SKI.V _ -> error "SKI result is a free variable"
+        _       -> RClosure
+normalizeSkiValue _ = error "SKI backend did not normalize to a single combinator"
 
 normalizeAstValue :: Ast.Value -> Result
 normalizeAstValue v =
