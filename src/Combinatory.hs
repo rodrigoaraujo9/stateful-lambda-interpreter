@@ -1,4 +1,5 @@
 module Combinatory where
+import Data.List (union)
 
 type Ident = String
 type State = (Comb, Stack)
@@ -23,7 +24,7 @@ infixl 9 :@
 
 fv :: Comb -> [Ident]
 fv (Combinatory.Var x) = [x]
-fv (p :@ q) = fv p ++ fv q
+fv (p :@ q) = fv p `union` fv q
 fv S = []
 fv K = []
 fv I = []
