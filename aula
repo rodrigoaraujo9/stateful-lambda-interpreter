@@ -1,0 +1,35 @@
+
+
+-- ver video do slide
+
+-- haskell workshop
+
+-- to do graph reduction use term and stack
+
+-- literate haskell for report
+
+-- step of rewrite until arrive at weak normal form
+-- for now not graph reduction cause it doesn't really do sharing -> see var
+rewrite :: [Comb] -> [Comb]
+rewrite (I:x:xs) = x:xs
+rewrite (K:p:_:xs) = p:xs
+rewrite (S:p:q:r:xs) = ((p :@ r) :@ (q :@ r)) : xs
+rewrite (C:p:q:r:xs) = ((p :@ r) :@ q) : xs
+rewrite (B:p:q:r:xs) = (p :@ (q :@ r)) : xs
+rewrite (Prim Add : Combinatory.Const a : Combinatory.Const b : xs) = Combinatory.Const (a + b) : xs
+rewrite (Prim Sub : Combinatory.Const a : Combinatory.Const b : xs) = Combinatory.Const (a - b) : xs
+rewrite (Prim Mul : Combinatory.Const a : Combinatory.Const b : xs) = Combinatory.Const (a * b) : xs
+rewrite (Combinatory.IfZero : Combinatory.Const 0 : t : _ :xs) = t:xs
+rewrite (Combinatory.IfZero : Combinatory.Const _ : _ : f :xs) = f:xs
+rewrite xs = xs
+
+isfree :: Ident -> Term -> Bool
+isfree v t = v `elem` fv t
+
+-- whenever we have application call recursively on e1 unwind
+-- find the leftmost, outermost redex by descending left on the spine of @-nodes
+unwind :: [Comb] -> [Comb]
+unwind ((e1 :@ e2): xs) = unwind (e1:e2:xs)
+unwind e = e
+
+-- trace keep all intermediary steps in list

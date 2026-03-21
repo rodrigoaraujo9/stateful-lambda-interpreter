@@ -16,14 +16,18 @@ main = do
         then error "give a .fun file"
         else do
             input <- readFile file
-            let term = parse (lexer input)
-            let comb = compile term
-            let result = evaluate [comb]
-            putStrLn "term:"
+            let term   = parse (lexer input)
+            let comb   = compile' term
+            let result = eval comb
+            putStrLn ""
+            putStrLn ""
+            putStrLn "*fun!*"
+            putStrLn ""
+            putStrLn "*term*"
             print term
             putStrLn ""
-            putStrLn "code:"
+            putStrLn "*compiled*"
             print comb
             putStrLn ""
-            putStrLn "result:"
+            putStrLn "*evaluated*"
             print result

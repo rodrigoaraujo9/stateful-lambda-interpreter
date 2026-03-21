@@ -1,13 +1,8 @@
 module Lambda where
+
 import Data.List (union, delete)
 
 type Ident = String
-type Env   = [(Ident,Value)]
-type Cont  = Value -> Value
-
-data Value  = Int Int
-            | Closure Term Env
-            deriving (Show, Eq)
 
 data Term = Var Ident               -- variables
           | Lambda Ident Term       -- abstraction
@@ -25,7 +20,7 @@ data Term = Var Ident               -- variables
 fv :: Term -> [Ident]
 fv (Var x)           = [x]
 fv (Lambda x e)      = delete x (fv e)
-fv (App e1 e2)       =  (fv e1) `union` (fv e2)
+fv (App e1 e2)       = fv e1 `union` fv e2
 fv (Const _)         = []
 fv (e1 :+ e2)        = fv e1 `union` fv e2
 fv (e1 :* e2)        = fv e1 `union` fv e2

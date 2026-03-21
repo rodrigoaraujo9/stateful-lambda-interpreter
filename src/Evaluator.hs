@@ -1,44 +1,52 @@
 module Evaluator where
+
 import Combinatory
 
-evaluate :: [Comb] -> [Comb]
-evaluate t =
-  case unwind t of
-    (Prim Add : a : b : xs) ->
-      case (evaluate [a], evaluate [b]) of
-        ([Const x], [Const y]) -> evaluate (Const (x + y) : xs)
+eval :: Comb -> Comb
+eval c =
+  case evaluate (c, []) of
+    (result, []) -> result
+    (result, xs) -> foldl (:@) result xs
+
+evaluate :: State -> State
+evaluate st =
+  case unwind st of
+    (Prim Add, a:b:xs) ->
+      case (eval a, eval b) of
+        (Const x, Const y) -> evaluate (Const (x + y), xs)
         _ -> error "*runtime error* invalid arguments for addition"
-    (Prim Sub : a : b : xs) ->
-      case (evaluate [a], evaluate [b]) of
-        ([Const x], [Const y]) -> evaluate (Const (x - y) : xs)
+    (Prim Sub, a:b:xs) ->
+      case (eval a, eval b) of
+        (Const x, Const y) -> evaluate (Const (x - y), xs)
         _ -> error "*runtime error* invalid arguments for subtraction"
-    (Prim Mul : a : b : xs) ->
-      case (evaluate [a], evaluate [b]) of
-        ([Const x], [Const y]) -> evaluate (Const (x * y) : xs)
+    (Prim Mul, a:b:xs) ->
+      case (eval a, eval b) of
+        (Const x, Const y) -> evaluate (Const (x * y), xs)
         _ -> error "*runtime error* invalid arguments for multiplication"
-    (Prim Div : a : b : xs) ->
-      case (evaluate [a], evaluate [b]) of
-        ([Const _], [Const 0]) -> error "division by zero"
-        ([Const x], [Const y]) -> evaluate (Const (x `div` y) : xs)
+    (Prim Div, a:b:xs) ->
+      case (eval a, eval b) of
+        (_, Const 0)       -> error "*runtime error* division by zero"
+        (Const x, Const y) -> evaluate (Const (x `div` y), xs)
         _ -> error "*runtime error* invalid arguments for division"
-    (IfZero : c : t1 : t2 : xs) ->
-      case evaluate [c] of
-        [Const 0] -> evaluate (t1 : xs)
-        [Const _] -> evaluate (t2 : xs)
-        _ -> error "*runtime error* invalid condition in ifzero"
-    t'
-      | rewrite t' == t' -> t'
-      | otherwise        -> evaluate (rewrite t')
+    (IfZero, c:t1:t2:xs) ->
+      case eval c of
+        Const 0 -> evaluate (t1, xs)
+        Const _ -> evaluate (t2, xs)
+        _       -> error "*runtime error* invalid condition in ifzero"
+    st' ->
+      case rewrite st' of
+        Just st'' -> evaluate st''
+        Nothing   -> st'
 
-unwind :: [Comb] -> [Comb]
-unwind ((e1 :@ e2): xs) = unwind (e1:e2:xs)
-unwind e = e
+unwind :: State -> State
+unwind (e1 :@ e2, xs) = unwind (e1, e2 : xs)
+unwind st             = st
 
-rewrite :: [Comb] -> [Comb]
-rewrite (I:x:xs)     = x:xs
-rewrite (K:p:_:xs)   = p:xs
-rewrite (S:p:q:r:xs) = ((p :@ r) :@ (q :@ r)) : xs
-rewrite (C:p:q:r:xs) = ((p :@ r) :@ q) : xs
-rewrite (B:p:q:r:xs) = (p :@ (q :@ r)) : xs
-rewrite (Y:f:xs)     = (f :@ (Y :@ f)) :xs
-rewrite xs = xs
+rewrite :: State -> Maybe State
+rewrite (I, x:xs)     = Just (x, xs)
+rewrite (K, p:_:xs)   = Just (p, xs)
+rewrite (S, p:q:r:xs) = Just (((p :@ r) :@ (q :@ r)), xs)
+rewrite (C, p:q:r:xs) = Just (((p :@ r) :@ q), xs)
+rewrite (B, p:q:r:xs) = Just (p :@ (q :@ r), xs)
+rewrite (Y, f:xs)     = Just (f :@ (Y :@ f), xs)
+rewrite _             = Nothing

@@ -1,14 +1,17 @@
 module Combinatory where
+
 import Data.List (union)
 
+type Addr  = Int
+type Stack = [Comb]
 type Ident = String
 type State = (Comb, Stack)
-type Stack = [Comb] -- is spine
+type Env   = [(Ident, Addr)]
 
 data Op = Add | Sub | Mul | Div
     deriving (Eq, Show)
 
-data Comb = Var Ident     -- variables
+data Comb = Var Addr      -- variables
          | Comb :@ Comb   -- application
          | S | K | I      -- basic combinators
 
@@ -22,15 +25,15 @@ data Comb = Var Ident     -- variables
 
 infixl 9 :@
 
-fv :: Comb -> [Ident]
-fv (Combinatory.Var x) = [x]
-fv (p :@ q) = fv p `union` fv q
-fv S = []
-fv K = []
-fv I = []
-fv B = []
-fv C = []
-fv Y = []
-fv (Combinatory.Const _) = []
-fv (Prim _) = []
-fv Combinatory.IfZero = []
+fv :: Comb -> [Addr]
+fv (Var x)   = [x]
+fv (p :@ q)  = fv p `union` fv q
+fv S         = []
+fv K         = []
+fv I         = []
+fv B         = []
+fv C         = []
+fv Y         = []
+fv (Const _) = []
+fv (Prim _)  = []
+fv IfZero    = []
