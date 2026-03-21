@@ -12,11 +12,12 @@ lexer ('=':cs)  = TEq      : lexer cs
 lexer ('+':cs)  = TPlus    : lexer cs
 lexer ('-':cs)  = TMinus   : lexer cs
 lexer ('*':cs)  = TTimes   : lexer cs
+lexer ('/':cs)  = TTimes   : lexer cs
 lexer ('(':cs)  = TLParen  : lexer cs
 lexer (')':cs)  = TRParen  : lexer cs
 lexer ('.':cs)  = TDot     : lexer cs
 lexer ('\\':cs) = TBackslash : lexer cs
-lexer (c:_)     = error $ "Unexpected character: " ++ [c]
+lexer (c:_)     = error $ "*lexical error* found unexpected character " ++ [c]
 
 lexNum :: String -> [Token]
 lexNum cs = TInt (read num) : lexer rest

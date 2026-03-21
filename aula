@@ -1,6 +1,6 @@
-module Combinator where
+module Combinatory where
 
-import Ast(Term(..), fv)
+import Lambda(Term(..), fv)
 
 type Ident = String
 
@@ -29,27 +29,27 @@ data Comb = Var Ident     -- variables -- var should not be a string for real gr
 infixl 9 :@
 
 compile :: Term -> Comb
-compile (Ast.Const c) = Combinator.Const c
-compile (Ast.Var x) = Combinator.Var x
+compile (Lambda.Const c) = Combinatory.Const c
+compile (Lambda.Var x) = Combinatory.Var x
 compile (App e1 e2) = compile e1 :@ compile e2
-compile (e1 Ast.:+ e2) = (Prim Add :@ compile e1) :@ compile e2
-compile (e1 Ast.:- e2) = (Prim Sub :@ compile e1) :@ compile e2
-compile (e1 Ast.:* e2) = (Prim Mul :@ compile e1) :@ compile e2
+compile (e1 Lambda.:+ e2) = (Prim Add :@ compile e1) :@ compile e2
+compile (e1 Lambda.:- e2) = (Prim Sub :@ compile e1) :@ compile e2
+compile (e1 Lambda.:* e2) = (Prim Mul :@ compile e1) :@ compile e2
 compile (Lambda x e) = lambdaT x (compile e)
 compile (Let x e1 e2) = compile (App (Lambda x e2) e1)
 compile (Fix e) = Y :@ compile e
-compile (Ast.IfZero e1 e2 e3) = (Combinator.IfZero :@ compile e1) :@ compile e2 :@ compile e3
+compile (Lambda.IfZero e1 e2 e3) = (Combinatory.IfZero :@ compile e1) :@ compile e2 :@ compile e3
 
 
 lambdaT :: Ident -> Comb -> Comb
-lambdaT x (Combinator.Var y)
+lambdaT x (Combinatory.Var y)
     | x == y = I
-    | otherwise = K :@ Combinator.Var y
+    | otherwise = K :@ Combinatory.Var y
 
 lambdaT x c
     | not (isfreeComb x c) = K :@ c
 
-lambdaT x (p :@ Combinator.Var y)
+lambdaT x (p :@ Combinatory.Var y)
     | x == y && not (isfreeComb x p) = p
 
 lambdaT x (p :@ q)
@@ -67,11 +67,11 @@ rewrite (K:p:_:xs) = p:xs
 rewrite (S:p:q:r:xs) = ((p :@ r) :@ (q :@ r)) : xs
 rewrite (C:p:q:r:xs) = ((p :@ r) :@ q) : xs
 rewrite (B:p:q:r:xs) = (p :@ (q :@ r)) : xs
-rewrite (Prim Add : Combinator.Const a : Combinator.Const b : xs) = Combinator.Const (a + b) : xs
-rewrite (Prim Sub : Combinator.Const a : Combinator.Const b : xs) = Combinator.Const (a - b) : xs
-rewrite (Prim Mul : Combinator.Const a : Combinator.Const b : xs) = Combinator.Const (a * b) : xs
-rewrite (Combinator.IfZero : Combinator.Const 0 : t : _ :xs) = t:xs
-rewrite (Combinator.IfZero : Combinator.Const _ : _ : f :xs) = f:xs
+rewrite (Prim Add : Combinatory.Const a : Combinatory.Const b : xs) = Combinatory.Const (a + b) : xs
+rewrite (Prim Sub : Combinatory.Const a : Combinatory.Const b : xs) = Combinatory.Const (a - b) : xs
+rewrite (Prim Mul : Combinatory.Const a : Combinatory.Const b : xs) = Combinatory.Const (a * b) : xs
+rewrite (Combinatory.IfZero : Combinatory.Const 0 : t : _ :xs) = t:xs
+rewrite (Combinatory.IfZero : Combinatory.Const _ : _ : f :xs) = f:xs
 rewrite xs = xs
 
 isfree :: Ident -> Term -> Bool
@@ -105,7 +105,7 @@ isfreeComb :: Ident -> Comb -> Bool
 isfreeComb v t = v `elem` fvComb t
 
 fvComb :: Comb -> [Ident]
-fvComb (Combinator.Var x) = [x]
+fvComb (Combinatory.Var x) = [x]
 fvComb (p :@ q) = fvComb p ++ fvComb q
 fvComb S = []
 fvComb K = []
@@ -113,6 +113,6 @@ fvComb I = []
 fvComb B = []
 fvComb C = []
 fvComb Y = []
-fvComb (Combinator.Const _) = []
+fvComb (Combinatory.Const _) = []
 fvComb (Prim _) = []
-fvComb Combinator.IfZero = []
+fvComb Combinatory.IfZero = []
