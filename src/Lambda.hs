@@ -6,22 +6,24 @@ type Ident = String
 type Env   = [(Ident,Value)]
 type Cont  = Value -> Value
 
-data Value  = Int Int
-            | Closure Term Env
-            deriving (Show, Eq)
+data Value
+    = Int Int
+    | Closure Term Env
+    deriving (Show, Eq)
 
-data Term = Var Ident               -- variables
-          | Lambda Ident Term       -- abstraction
-          | App Term Term           -- application
-          | Const Int               -- constants
-          | Term :+ Term            -- arithmetic operators
-          | Term :- Term
-          | Term :* Term
-          | Term :/ Term
-          | IfZero Term Term Term   -- conditional
-          | Let Ident Term Term     -- local definition
-          | Fix Term                -- fixed-point operator
-        deriving (Show, Eq)
+data Term
+    = Var Ident               -- variables
+    | Lambda Ident Term       -- abstraction
+    | App Term Term           -- application
+    | Const Int               -- constants
+    | Term :+ Term            -- arithmetic operators
+    | Term :- Term
+    | Term :* Term
+    | Term :/ Term
+    | IfZero Term Term Term   -- conditional
+    | Let Ident Term Term     -- local definition
+    | Fix Term                -- fixed-point operator
+    deriving (Show, Eq)
 
 fv :: Term -> [Ident]
 fv (Var x)           = [x]

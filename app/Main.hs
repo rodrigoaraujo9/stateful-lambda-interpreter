@@ -17,8 +17,8 @@ main = do
         else do
             input <- readFile file
             let term   = parse (lexer input)
-            let comb   = compile' term
-            let result = evaluate comb
+            let combinator   = compile term
+            let result = evaluate [combinator]
             putStrLn ""
             putStrLn ""
             putStrLn "*fun!*"
@@ -27,7 +27,7 @@ main = do
             print term
             putStrLn ""
             putStrLn "*compiled*"
-            print comb
+            print combinator
             putStrLn ""
             putStrLn "*evaluated*"
             print result
