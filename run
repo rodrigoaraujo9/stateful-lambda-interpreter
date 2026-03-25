@@ -1,0 +1,7 @@
+happy src/Parser.y --ghc
+cabal run exe:fun -- test/test.fun
+cabal run exe:fun -- test/catalan.fun
+cabal run exe:fun -- test/fib.fun
+cabal run exe:fun -- test/gauss.fun
+cabal run exe:fun -- test/lucas.fun
+cabal run exe:fun -- test/pell.fun
