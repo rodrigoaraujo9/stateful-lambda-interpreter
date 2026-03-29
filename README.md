@@ -2,17 +2,17 @@
 <div align="center">
   <h3 align="center">lambda-calculus</h3>
   <p align="center">
-    A lambda calculus interpreter, compiler, and SECD virtual machine in Haskell.
+    A collection of lambda calculus interpreters and compilers to SECD and Extended SKI in Haskell.
   </p>
 </div>
 
 ## About
 
-This project was developed for a programming languages course and explores multiple ways of executing the same lambda calculus language inside a single codebase.
+This project was developed for a programming languages course and explores programming languages, diving into multiple strategies for evaluation and intermediary code representations.
 
-The goal was not only to evaluate expressions, but to understand how different semantic models relate to each other in practice: direct substitution, closure-based evaluation, continuation-passing style, and finally compilation into an abstract machine.
+The goal was not only to evaluate expressions, but to understand how different semantic models relate to each other in practice: direct substitution, closure-based evaluation, continuation-passing style, compilation into an abstract machine and graph based reduction.
 
-The parsing infrastructure and abstract syntax tree were provided in class, while the interpreters, compiler, runtime machine, and test suite were implemented independently.
+The abstract syntax tree for the fun languages was provided in class, while the interpreters, compilers, the lexer and the parser were implemented independently.
 
 The language currently supports:
 
@@ -22,10 +22,6 @@ The language currently supports:
 - conditionals with `if iszero`
 - local definitions with `let`
 - recursion through `fix`
-
-## Execution models
-
-The executable supports four execution modes, each exposing a different semantic perspective over the same language.
 
 ### Substitution evaluator
 
@@ -38,6 +34,7 @@ Focuses on the most immediate operational interpretation of lambda calculus:
 - explicit substitution
 
 ```bash
+cd interpreters
 cabal run exe:lambda-calculus -- subst
 ```
 
@@ -52,6 +49,8 @@ Instead of rewriting syntax, values are carried through lexical environments:
 - closures preserve defining environments
 
 ```bash
+cd interpreters
+
 cabal run exe:lambda-calculus -- env
 ```
 
@@ -66,6 +65,7 @@ This makes control flow explicit and mirrors the same semantics under continuati
 - explicit control transfer
 
 ```bash
+cd interpreters
 cabal run exe:lambda-calculus -- cps
 ```
 
@@ -81,129 +81,25 @@ This moves from interpretation into explicit machine execution:
 - dump-based returns
 
 ```bash
-cabal run exe:lambda-calculus -- secd
+cd compilers
+cabal run exe:fun test.fun
 ```
 
-## Machine model
+### G-Machine
 
-The SECD implementation follows the abstract machine studied in class:
+Although not yet a fully implemented G-Machine, it does compilation into Extended SKI combinators followed by weak reduction.
 
-- **S** → stack
-- **E** → environment
-- **C** → control
-- **D** → dump
-- **Store** → closure memory
+This evaluator moves from lambda terms to a combinatory representation, eliminating variable binding and executing programs through combinator rewriting.
 
-Machine configuration:
+It follows the graph-reduction and combinatory logic model presented in the course slides:
 
-```haskell
-type Conf = (Stack, Env, Code, Dump, Store)
-```
-
-Closures are stored explicitly:
-
-```haskell
-type Closure = (Code, Env)
-```
-
-Runtime values:
-
-```haskell
-data Value
-  = I Int
-  | A Addr
-```
-
-## Compilation
-
-Source terms are compiled into machine instructions:
-
-```haskell
-compile :: Term -> [Ident] -> Code
-```
-
-Variables are translated into lexical indices before execution.
-
-Example:
-
-```txt
-lambda x . x + 1
-```
-
-becomes:
-
-```haskell
-[LDF [LD 0, LDC 1, ADD, RTN]]
-```
-
-## Supported instructions
-
-The SECD runtime currently supports:
-
-```haskell
-LDC
-LD
-ADD
-SUB
-MUL
-LDF
-LDRF
-AP
-RTN
-SEL
-JOIN
-HALT
-```
-
-Recursive closures are handled through `LDRF`, allowing cyclic store allocation for `fix`.
-
-## How to run
-
-Generate the parser and build:
+- weak head normal form evaluation
+- non-strict execution
+- optimized bracket abstraction
+- Extended SKI with `S`, `K`, `I`, `B`, `C` and `Y`
+- strict handling of primitive arithmetic and `ifzero`
 
 ```bash
-happy src/Parser.y
-cabal build
-```
-
-Then choose a backend:
-
-```bash
-cabal run exe:lambda-calculus -- subst
-cabal run exe:lambda-calculus -- env
-cabal run exe:lambda-calculus -- cps
-cabal run exe:lambda-calculus -- secd
-```
-
-Input is read from standard input.
-
-## Testing
-
-The project includes a shared automated suite covering all execution models:
-
-```bash
-cabal test
-```
-
-This verifies:
-
-- arithmetic
-- lexical scoping
-- closures
-- recursion
-- higher-order functions
-- machine/runtime errors
-
-## Example programs
-
-```txt
-if iszero 0 then 99 else 5
-```
-
-```txt
-let twice = lambda f . lambda x . f (f x) in twice (lambda x . x + 1) 42
-```
-
-```txt
-let fact = fix lambda f . lambda n . if iszero n then 1 else n * f (n - 1) in fact 10
+cd compilers/g-machine
+cabal run exe:fun test.fun
 ```
